@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: toefl-memrise-oxford5000-quiz
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: WORD_SOURCE_URL
+        value: https://raw.githubusercontent.com/jnoodle/English-Vocabulary-Word-List/master/Oxford%205000.txt

@@ -1,0 +1,12 @@
+{
+  "name": "toefl-memrise-oxford5000-quiz",
+  "version": "1.2.0",
+  "description": "TOEFL-style memorization app using Oxford 5000 source with flashcards and quiz mode",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

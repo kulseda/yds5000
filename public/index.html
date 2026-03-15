@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oxford 5000 Garden Quiz</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">🌱</div>
+        <div>
+          <div class="brand-title">Oxford 5000 Garden</div>
+          <div class="brand-subtitle">Flashcards + quiz</div>
+        </div>
+      </div>
+
+      <div class="course-card">
+        <div class="course-label">Course</div>
+        <h2>Oxford 5000</h2>
+        <p>Uses the Oxford 5000 list as the source word set.</p>
+
+        <div class="garden-box">
+          <div class="garden-title">Your garden</div>
+          <div id="gardenEmoji" class="garden-emoji">🌱</div>
+          <div id="gardenText" class="garden-text">New learner</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-item">
+          <span>XP</span>
+          <strong id="xpValue">0</strong>
+        </div>
+        <div class="stat-item">
+          <span>Streak</span>
+          <strong id="streakValue">0</strong>
+        </div>
+        <div class="stat-item">
+          <span>Mastered</span>
+          <strong id="masteredValue">0</strong>
+        </div>
+      </div>
+
+      <div class="progress-card">
+        <div class="progress-row">
+          <span>Session progress</span>
+          <span id="sessionLabel">0 / 20</span>
+        </div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <button id="resetBtn" class="ghost-btn">Reset progress</button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div>
+          <h1>Learn words</h1>
+          <p>Reveal meanings, rate yourself, then test with quiz mode.</p>
+        </div>
+        <div class="pill">Daily target: <strong>20</strong></div>
+      </header>
+
+      <div class="mode-toggle">
+        <button id="flashcardModeBtn" class="mode-btn active">Flashcards</button>
+        <button id="quizModeBtn" class="mode-btn">Quiz</button>
+      </div>
+
+      <section id="flashcardSection" class="lesson-card">
+        <div class="lesson-head">
+          <span class="chip">Word <span id="currentIndex">0</span></span>
+          <span class="chip soft" id="statusChip">Ready</span>
+        </div>
+
+        <div class="word-box">
+          <div id="wordText" class="word-text">Loading...</div>
+          <div id="partOfSpeech" class="part-of-speech"></div>
+        </div>
+
+        <div id="meaningPanel" class="meaning-panel hidden">
+          <div class="meaning-title">Meaning</div>
+          <p id="definitionText"></p>
+          <p id="exampleText" class="example-text"></p>
+        </div>
+
+        <div class="button-row">
+          <button id="showBtn" class="primary-btn">Show meaning</button>
+        </div>
+
+        <div id="ratingRow" class="rating-row hidden">
+          <button data-score="1" class="rate-btn bad">Again</button>
+          <button data-score="2" class="rate-btn mid">Hard</button>
+          <button data-score="3" class="rate-btn good">Good</button>
+          <button data-score="4" class="rate-btn easy">Easy</button>
+        </div>
+
+        <div class="mini-help">
+          Easy words come back less often. Hard words repeat sooner.
+        </div>
+      </section>
+
+      <section id="quizSection" class="lesson-card hidden">
+        <div class="lesson-head">
+          <span class="chip">Quiz</span>
+          <span class="chip soft" id="quizScoreChip">Score: 0</span>
+        </div>
+
+        <div class="quiz-question-box">
+          <div class="quiz-label">Choose the correct meaning</div>
+          <div id="quizWordText" class="word-text">Loading...</div>
+        </div>
+
+        <div id="quizChoices" class="quiz-choices"></div>
+
+        <div id="quizResult" class="quiz-result hidden"></div>
+
+        <div class="button-row">
+          <button id="nextQuizBtn" class="primary-btn hidden">Next question</button>
+        </div>
+      </section>
+
+      <section class="queue-card">
+        <div class="queue-head">
+          <h3>Review queue</h3>
+          <span id="queueInfo">Preparing...</span>
+        </div>
+        <div id="queueList" class="queue-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
