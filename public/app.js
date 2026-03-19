@@ -1,5 +1,5 @@
 const DAILY_TARGET = 20;
-const STORAGE_KEY = "oxford5000_garden_progress_v1";
+const STORAGE_KEY = "oxford5000_garden_progress_v2";
 
 let deck = [];
 let detailsCache = {};
@@ -13,7 +13,8 @@ let state = {
   mastered: {},
   queue: [],
   studiedToday: 0,
-  lastStudyDate: ""
+  lastStudyDate: "",
+  nextIndex: 0
 };
 
 const wordText = document.getElementById("wordText");
@@ -59,6 +60,7 @@ function shuffle(array) {
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return;
+
   try {
     const parsed = JSON.parse(saved);
     state = {
@@ -67,7 +69,8 @@ function loadState() {
       mastered: parsed.mastered || {},
       queue: parsed.queue || [],
       studiedToday: parsed.studiedToday || 0,
-      lastStudyDate: parsed.lastStudyDate || ""
+      lastStudyDate: parsed.lastStudyDate || "",
+      nextIndex: parsed.nextIndex || 0
     };
   } catch (_) {}
 }
@@ -78,6 +81,7 @@ function saveState() {
 
 function updateGarden() {
   const masteredCount = Object.values(state.mastered).filter(v => v >= 4).length;
+
   if (masteredCount >= 100) {
     gardenEmoji.textContent = "🌳";
     gardenText.textContent = "Flourishing garden";
@@ -98,10 +102,12 @@ function updateStats() {
   xpValue.textContent = state.xp;
   streakValue.textContent = state.streak;
   masteredValue.textContent = masteredCount;
+
   const percent = Math.min((state.studiedToday / DAILY_TARGET) * 100, 100);
   progressFill.style.width = `${percent}%`;
   sessionLabel.textContent = `${state.studiedToday} / ${DAILY_TARGET}`;
   quizScoreChip.textContent = `Score: ${quizState.score}`;
+
   updateGarden();
   renderQueue();
 }
@@ -109,6 +115,7 @@ function updateStats() {
 function renderQueue() {
   queueInfo.textContent = `${state.queue.length} cards waiting`;
   queueList.innerHTML = "";
+
   state.queue.slice(0, 24).forEach((item) => {
     const badge = document.createElement("div");
     badge.className = "queue-item";
@@ -116,24 +123,29 @@ function renderQueue() {
     badge.textContent = `${item.word} · L${level}`;
     queueList.appendChild(badge);
   });
+
   if (state.queue.length === 0) {
     const badge = document.createElement("div");
     badge.className = "queue-item";
-    badge.textContent = "Queue is empty. Great job.";
+    badge.textContent = "Queue is empty.";
     queueList.appendChild(badge);
   }
 }
 
 function ensureToday() {
   const today = todayString();
+
   if (state.lastStudyDate === today) return;
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
-  if (state.lastStudyDate === yesterdayStr) state.streak += 1;
-  else state.streak = 1;
+  if (state.lastStudyDate === yesterdayStr) {
+    state.streak += 1;
+  } else {
+    state.streak = 1;
+  }
 
   state.studiedToday = 0;
   state.lastStudyDate = today;
@@ -141,28 +153,62 @@ function ensureToday() {
 }
 
 async function loadDeck() {
-  const res = await fetch("/api/course?limit=150");
+  const res = await fetch("/api/course?limit=5000");
   const data = await res.json();
   deck = data.items || [];
+
+  if (!Array.isArray(deck) || deck.length === 0) {
+    console.error("Deck could not be loaded.");
+    return;
+  }
+
+  if (state.nextIndex <= 0 || state.nextIndex > deck.length) {
+    state.nextIndex = 0;
+  }
+
+  if (!Array.isArray(state.queue)) {
+    state.queue = [];
+  }
+
   if (state.queue.length === 0) {
-    state.queue = deck.slice(0, 20).map((word) => ({ word }));
+    fillQueueToTarget();
     saveState();
   }
 }
 
 async function getWordDetails(word) {
   if (detailsCache[word]) return detailsCache[word];
+
   const res = await fetch(`/api/word/${encodeURIComponent(word)}`);
   const data = await res.json();
   detailsCache[word] = data;
   return data;
 }
 
+function fillQueueToTarget() {
+  const existing = new Set(state.queue.map(item => item.word));
+
+  while (state.queue.length < 20 && state.nextIndex < deck.length) {
+    const nextWord = deck[state.nextIndex];
+    state.nextIndex += 1;
+
+    if (!existing.has(nextWord)) {
+      state.queue.push({ word: nextWord });
+      existing.add(nextWord);
+    }
+  }
+}
+
 async function openNextCard() {
   if (state.queue.length === 0) {
+    fillQueueToTarget();
+    saveState();
+  }
+
+  if (state.queue.length === 0) {
     statusChip.textContent = "Finished";
-    wordText.textContent = "Session complete";
-    partOfSpeech.textContent = "You reviewed everything in the queue.";
+    wordText.textContent = "All words completed";
+    partOfSpeech.textContent = "No more cards left in the deck.";
     meaningPanel.classList.add("hidden");
     ratingRow.classList.add("hidden");
     currentIndex.textContent = "0";
@@ -171,10 +217,12 @@ async function openNextCard() {
 
   currentCard = state.queue[0];
   const data = await getWordDetails(currentCard.word);
+
   wordText.textContent = data.word || currentCard.word;
   partOfSpeech.textContent = data.partOfSpeech || "";
   definitionText.textContent = data.definition || "Definition not found.";
   exampleText.textContent = data.example ? `Example: ${data.example}` : "";
+
   meaningPanel.classList.add("hidden");
   ratingRow.classList.add("hidden");
   statusChip.textContent = "Learning";
@@ -187,16 +235,18 @@ function removeCurrentCard() {
 
 function reinsertCard(word, score) {
   const item = { word };
-  if (score === 1) state.queue.splice(Math.min(1, state.queue.length), 0, item);
-  else if (score === 2) state.queue.splice(Math.min(3, state.queue.length), 0, item);
-  else if (score === 3) state.queue.splice(Math.min(6, state.queue.length), 0, item);
-}
+  const level = state.mastered[word] || 0;
 
-function addFreshWordIfNeeded() {
-  const knownWords = new Set(state.queue.map(q => q.word));
-  Object.keys(state.mastered).forEach(w => knownWords.add(w));
-  const fresh = deck.find(w => !knownWords.has(w));
-  if (fresh && state.queue.length < 20) state.queue.push({ word: fresh });
+  if (score === 1) {
+    state.queue.splice(Math.min(1, state.queue.length), 0, item);
+  } else if (score === 2) {
+    state.queue.splice(Math.min(3, state.queue.length), 0, item);
+  } else if (score === 3) {
+    if (level < 2) {
+      state.queue.splice(Math.min(6, state.queue.length), 0, item);
+    }
+  }
+  // score === 4 ise geri eklemiyoruz
 }
 
 function switchMode(mode) {
@@ -205,24 +255,64 @@ function switchMode(mode) {
   quizModeBtn.classList.toggle("active", mode === "quiz");
   flashcardSection.classList.toggle("hidden", mode !== "flashcards");
   quizSection.classList.toggle("hidden", mode !== "quiz");
-  if (mode === "quiz") prepareQuizQuestion();
+
+  if (mode === "quiz") {
+    prepareQuizQuestion();
+  }
 }
 
 async function prepareQuizQuestion() {
-  const sourceWords = state.queue.length > 0 ? state.queue.slice(0, 8).map(q => q.word) : deck.slice(0, 8);
+  if (state.queue.length === 0) {
+    fillQueueToTarget();
+    saveState();
+  }
+
+  const sourceWords = state.queue.length > 0
+    ? state.queue.slice(0, Math.min(8, state.queue.length)).map(q => q.word)
+    : deck.slice(0, 8);
+
+  if (sourceWords.length === 0) {
+    quizWordText.textContent = "No words available";
+    quizChoices.innerHTML = "";
+    quizResult.classList.remove("hidden");
+    quizResult.textContent = "Deck is finished.";
+    nextQuizBtn.classList.add("hidden");
+    return;
+  }
+
   const targetWord = sourceWords[Math.floor(Math.random() * sourceWords.length)];
   const target = await getWordDetails(targetWord);
 
-  const distractorWords = shuffle(deck.filter(w => w !== targetWord)).slice(0, 14);
+  if (!target.definition || target.definition === "Definition not found.") {
+    await prepareQuizQuestion();
+    return;
+  }
+
+  const distractorWords = shuffle(deck.filter(w => w !== targetWord)).slice(0, 30);
   const distractorDetails = [];
+
   for (const word of distractorWords) {
     const detail = await getWordDetails(word);
-    if (detail.definition && detail.definition !== "Definition not found.") distractorDetails.push(detail);
+    if (
+      detail.definition &&
+      detail.definition !== "Definition not found." &&
+      detail.definition !== target.definition
+    ) {
+      distractorDetails.push(detail);
+    }
     if (distractorDetails.length >= 3) break;
   }
 
-  const options = shuffle([target.definition, ...distractorDetails.map(d => d.definition)].slice(0, 4));
-  quizState.currentQuestion = { word: targetWord, correctDefinition: target.definition, options };
+  const options = shuffle([
+    target.definition,
+    ...distractorDetails.map(d => d.definition)
+  ].slice(0, 4));
+
+  quizState.currentQuestion = {
+    word: targetWord,
+    correctDefinition: target.definition,
+    options
+  };
 
   quizWordText.textContent = targetWord;
   quizChoices.innerHTML = "";
@@ -241,10 +331,14 @@ async function prepareQuizQuestion() {
 function handleQuizAnswer(selected, clickedBtn) {
   const q = quizState.currentQuestion;
   if (!q) return;
+
   const buttons = [...document.querySelectorAll(".quiz-choice")];
-  buttons.forEach(btn => btn.disabled = true);
+  buttons.forEach(btn => (btn.disabled = true));
+
   buttons.forEach(btn => {
-    if (btn.textContent === q.correctDefinition) btn.classList.add("correct");
+    if (btn.textContent === q.correctDefinition) {
+      btn.classList.add("correct");
+    }
   });
 
   if (selected === q.correctDefinition) {
@@ -257,11 +351,13 @@ function handleQuizAnswer(selected, clickedBtn) {
     clickedBtn.classList.add("wrong");
     quizResult.textContent = "Wrong. The correct meaning is highlighted.";
     state.xp += 1;
+    state.mastered[q.word] = Math.max((state.mastered[q.word] || 0), 0);
   }
 
   state.studiedToday += 1;
   saveState();
   updateStats();
+
   quizResult.classList.remove("hidden");
   nextQuizBtn.classList.remove("hidden");
 }
@@ -274,6 +370,8 @@ document.getElementById("showBtn").addEventListener("click", () => {
 
 document.querySelectorAll(".rate-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
+    if (!currentCard) return;
+
     const score = Number(btn.dataset.score);
     const word = currentCard.word;
     const currentLevel = state.mastered[word] || 0;
@@ -294,7 +392,8 @@ document.querySelectorAll(".rate-btn").forEach((btn) => {
 
     removeCurrentCard();
     reinsertCard(word, score);
-    addFreshWordIfNeeded();
+    fillQueueToTarget();
+
     state.studiedToday += 1;
     saveState();
     updateStats();
@@ -303,13 +402,19 @@ document.querySelectorAll(".rate-btn").forEach((btn) => {
 });
 
 document.getElementById("resetBtn").addEventListener("click", async () => {
-  state.queue = deck.slice(0, 20).map((word) => ({ word }));
+  state.queue = [];
   state.studiedToday = 0;
+  state.nextIndex = 0;
   quizState.score = 0;
+
+  fillQueueToTarget();
   saveState();
   updateStats();
   await openNextCard();
-  if (currentMode === "quiz") await prepareQuizQuestion();
+
+  if (currentMode === "quiz") {
+    await prepareQuizQuestion();
+  }
 });
 
 flashcardModeBtn.addEventListener("click", () => switchMode("flashcards"));
@@ -322,6 +427,8 @@ nextQuizBtn.addEventListener("click", async () => {
   loadState();
   ensureToday();
   await loadDeck();
+  fillQueueToTarget();
+  saveState();
   updateStats();
   await openNextCard();
 })();
