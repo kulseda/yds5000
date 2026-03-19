@@ -1,5 +1,5 @@
 const DAILY_TARGET = 20;
-const STORAGE_KEY = "oxford5000_garden_progress_v2";
+const STORAGE_KEY = "oxford5000_garden_progress_v3";
 
 let deck = [];
 let detailsCache = {};
@@ -20,6 +20,7 @@ let state = {
 const wordText = document.getElementById("wordText");
 const partOfSpeech = document.getElementById("partOfSpeech");
 const definitionText = document.getElementById("definitionText");
+const turkishText = document.getElementById("turkishText");
 const exampleText = document.getElementById("exampleText");
 const meaningPanel = document.getElementById("meaningPanel");
 const ratingRow = document.getElementById("ratingRow");
@@ -209,6 +210,9 @@ async function openNextCard() {
     statusChip.textContent = "Finished";
     wordText.textContent = "All words completed";
     partOfSpeech.textContent = "No more cards left in the deck.";
+    definitionText.textContent = "";
+    turkishText.textContent = "";
+    exampleText.textContent = "";
     meaningPanel.classList.add("hidden");
     ratingRow.classList.add("hidden");
     currentIndex.textContent = "0";
@@ -221,7 +225,8 @@ async function openNextCard() {
   wordText.textContent = data.word || currentCard.word;
   partOfSpeech.textContent = data.partOfSpeech || "";
   definitionText.textContent = data.definition || "Definition not found.";
-  exampleText.textContent = data.example ? `Example: ${data.example}` : "";
+  turkishText.textContent = data.turkish || "Türkçe çeviri bulunamadı.";
+  exampleText.textContent = data.example || "Example sentence not found.";
 
   meaningPanel.classList.add("hidden");
   ratingRow.classList.add("hidden");
@@ -246,7 +251,6 @@ function reinsertCard(word, score) {
       state.queue.splice(Math.min(6, state.queue.length), 0, item);
     }
   }
-  // score === 4 ise geri eklemiyoruz
 }
 
 function switchMode(mode) {
